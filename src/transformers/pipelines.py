@@ -476,7 +476,8 @@ class Pipeline(_ScikitCompat):
         # Parse arguments
         inputs = self._args_parser(*args, **kwargs)
         inputs = self.tokenizer(
-            inputs, add_special_tokens=add_special_tokens, return_tensors=self.framework, padding=padding,
+            inputs, add_special_tokens=add_special_tokens,
+            return_tensors=self.framework, padding=padding, truncation=True
         )
 
         return inputs
@@ -761,13 +762,16 @@ class TextClassificationPipeline(Pipeline):
             on the associated CUDA device id.
     """
 
-    def __init__(self, return_all_scores: bool = False, **kwargs):
+    def __init__(self, return_logits: bool = False, return_all_scores: bool = False, **kwargs):
         super().__init__(**kwargs)
 
+        self.return_logits = return_logits
         self.return_all_scores = return_all_scores
 
     def __call__(self, *args, **kwargs):
         outputs = super().__call__(*args, **kwargs)
+        if self.return_logits:
+            return outputs
         scores = np.exp(outputs) / np.exp(outputs).sum(-1, keepdims=True)
         if self.return_all_scores:
             return [
