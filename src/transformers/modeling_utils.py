@@ -946,7 +946,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
         self.base_model._prune_heads(heads_to_prune)
 
-    def gradient_checkpointing_enable(self):
+    def gradient_checkpointing_enable(self, use_deepspeed=False):
         """
         Activates gradient checkpointing for the current model.
 
@@ -955,7 +955,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         """
         if not self.supports_gradient_checkpointing:
             raise ValueError(f"{self.__class__.__name__} does not support gradient checkpointing.")
-        self.apply(partial(self._set_gradient_checkpointing, value=True))
+        self.apply(partial(self._set_gradient_checkpointing, gradient_checkpointing=True,
+                           deepspeed_checkpointing=use_deepspeed))
 
     def gradient_checkpointing_disable(self):
         """
@@ -965,7 +966,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         activations".
         """
         if self.supports_gradient_checkpointing:
-            self.apply(partial(self._set_gradient_checkpointing, value=False))
+            self.apply(partial(self._set_gradient_checkpointing, gradient_checkpointing=False,
+                               deepspeed_checkpointing=False))
 
     @property
     def is_gradient_checkpointing(self) -> bool:

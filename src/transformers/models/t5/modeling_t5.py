@@ -20,6 +20,7 @@ import math
 import os
 import warnings
 
+import deepspeed
 import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
@@ -326,6 +327,7 @@ class T5Attention(nn.Module):
             self.relative_attention_bias = nn.Embedding(self.relative_attention_num_buckets, self.n_heads)
         self.pruned_heads = set()
         self.gradient_checkpointing = False
+        self.deepspeed_checkpointing = False  # used to choice between DeepSpeed and PyTorch activation checkpointing
 
     def prune_heads(self, heads):
         if len(heads) == 0:
@@ -770,9 +772,10 @@ class T5PreTrainedModel(PreTrainedModel):
             if module.has_relative_attention_bias:
                 module.relative_attention_bias.weight.data.normal_(mean=0.0, std=factor * ((d_model) ** -0.5))
 
-    def _set_gradient_checkpointing(self, module, value=False):
+    def _set_gradient_checkpointing(self, module, gradient_checkpointing=False, deepspeed_checkpointing=False):
         if isinstance(module, (T5Attention, T5Stack)):
-            module.gradient_checkpointing = value
+            module.gradient_checkpointing = gradient_checkpointing
+            module.deepspeed_checkpointing = deepspeed_checkpointing
 
     def _shift_right(self, input_ids):
         decoder_start_token_id = self.config.decoder_start_token_id
@@ -819,6 +822,7 @@ class T5Stack(T5PreTrainedModel):
         self.model_parallel = False
         self.device_map = None
         self.gradient_checkpointing = False
+        self.deepspeed_checkpointing = False
 
     @add_start_docstrings(PARALLELIZE_DOCSTRING)
     def parallelize(self, device_map=None):
@@ -987,18 +991,32 @@ class T5Stack(T5PreTrainedModel):
 
                     return custom_forward
 
-                layer_outputs = checkpoint(
-                    create_custom_forward(layer_module),
-                    hidden_states,
-                    extended_attention_mask,
-                    position_bias,
-                    encoder_hidden_states,
-                    encoder_extended_attention_mask,
-                    encoder_decoder_position_bias,
-                    layer_head_mask,
-                    cross_attn_layer_head_mask,
-                    None,  # past_key_value is always None with gradient checkpointing
-                )
+                if self.deepspeed_checkpointing:
+                    layer_outputs = deepspeed.checkpointing.checkpoint(
+                        create_custom_forward(layer_module),
+                        (hidden_states,
+                         extended_attention_mask,
+                         position_bias,
+                         encoder_hidden_states,
+                         encoder_extended_attention_mask,
+                         encoder_decoder_position_bias,
+                         layer_head_mask,
+                         cross_attn_layer_head_mask,
+                         None,)  # past_key_value is always None with gradient checkpointing
+                    )
+                else:
+                    layer_outputs = checkpoint(
+                        create_custom_forward(layer_module),
+                        hidden_states,
+                        extended_attention_mask,
+                        position_bias,
+                        encoder_hidden_states,
+                        encoder_extended_attention_mask,
+                        encoder_decoder_position_bias,
+                        layer_head_mask,
+                        cross_attn_layer_head_mask,
+                        None,  # past_key_value is always None with gradient checkpointing
+                    )
             else:
                 layer_outputs = layer_module(
                     hidden_states,
