@@ -996,7 +996,7 @@ class T5Stack(T5PreTrainedModel):
                 else:
                     checkpoint = torch.utils.checkpoint.checkpoint
 
-                if i % 2 == 0:
+                if i % 1 == 0:
                     layer_outputs = checkpoint(
                         create_custom_forward(layer_module),
                         hidden_states,
