@@ -996,18 +996,32 @@ class T5Stack(T5PreTrainedModel):
                 else:
                     checkpoint = torch.utils.checkpoint.checkpoint
 
-                layer_outputs = checkpoint(
-                    create_custom_forward(layer_module),
-                    hidden_states,
-                    extended_attention_mask,
-                    position_bias,
-                    encoder_hidden_states,
-                    encoder_extended_attention_mask,
-                    encoder_decoder_position_bias,
-                    layer_head_mask,
-                    cross_attn_layer_head_mask,
-                    None,  # past_key_value is always None with gradient checkpointing
-                )
+                if i % 2 == 0:
+                    layer_outputs = checkpoint(
+                        create_custom_forward(layer_module),
+                        hidden_states,
+                        extended_attention_mask,
+                        position_bias,
+                        encoder_hidden_states,
+                        encoder_extended_attention_mask,
+                        encoder_decoder_position_bias,
+                        layer_head_mask,
+                        cross_attn_layer_head_mask,
+                        None,  # past_key_value is always None with gradient checkpointing
+                    )
+                else:
+                    layer_outputs = layer_module(
+                        hidden_states,
+                        attention_mask=extended_attention_mask,
+                        position_bias=position_bias,
+                        encoder_hidden_states=encoder_hidden_states,
+                        encoder_attention_mask=encoder_extended_attention_mask,
+                        encoder_decoder_position_bias=encoder_decoder_position_bias,
+                        layer_head_mask=layer_head_mask,
+                        cross_attn_layer_head_mask=cross_attn_layer_head_mask,
+                        use_cache=use_cache,
+                        output_attentions=output_attentions,
+                    )
             else:
                 layer_outputs = layer_module(
                     hidden_states,
