@@ -1019,6 +1019,7 @@ class T5Stack(T5PreTrainedModel):
                         encoder_decoder_position_bias=encoder_decoder_position_bias,
                         layer_head_mask=layer_head_mask,
                         cross_attn_layer_head_mask=cross_attn_layer_head_mask,
+                        past_key_value=None,
                         use_cache=use_cache,
                         output_attentions=output_attentions,
                     )
