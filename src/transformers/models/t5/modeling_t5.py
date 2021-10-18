@@ -992,31 +992,22 @@ class T5Stack(T5PreTrainedModel):
                     return custom_forward
 
                 if self.deepspeed_checkpointing:
-                    layer_outputs = deepspeed.checkpointing.checkpoint(
-                        create_custom_forward(layer_module),
-                        (hidden_states,
-                         extended_attention_mask,
-                         position_bias,
-                         encoder_hidden_states,
-                         encoder_extended_attention_mask,
-                         encoder_decoder_position_bias,
-                         layer_head_mask,
-                         cross_attn_layer_head_mask,
-                         None,)  # past_key_value is always None with gradient checkpointing
-                    )
+                    checkpoint = deepspeed.checkpointing.checkpoint
                 else:
-                    layer_outputs = checkpoint(
-                        create_custom_forward(layer_module),
-                        hidden_states,
-                        extended_attention_mask,
-                        position_bias,
-                        encoder_hidden_states,
-                        encoder_extended_attention_mask,
-                        encoder_decoder_position_bias,
-                        layer_head_mask,
-                        cross_attn_layer_head_mask,
-                        None,  # past_key_value is always None with gradient checkpointing
-                    )
+                    checkpoint = torch.utils.checkpoint.checkpoint
+
+                layer_outputs = checkpoint(
+                    create_custom_forward(layer_module),
+                    hidden_states,
+                    extended_attention_mask,
+                    position_bias,
+                    encoder_hidden_states,
+                    encoder_extended_attention_mask,
+                    encoder_decoder_position_bias,
+                    layer_head_mask,
+                    cross_attn_layer_head_mask,
+                    None,  # past_key_value is always None with gradient checkpointing
+                )
             else:
                 layer_outputs = layer_module(
                     hidden_states,

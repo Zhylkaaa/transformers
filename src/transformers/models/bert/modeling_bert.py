@@ -22,6 +22,7 @@ import warnings
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
+import deepspeed
 import torch
 import torch.utils.checkpoint
 from packaging import version
@@ -531,6 +532,7 @@ class BertEncoder(nn.Module):
         self.config = config
         self.layer = nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
+        self.deepspeed_checkpointing = False
 
     def forward(
         self,
@@ -571,7 +573,12 @@ class BertEncoder(nn.Module):
 
                     return custom_forward
 
-                layer_outputs = torch.utils.checkpoint.checkpoint(
+                if self.deepspeed_checkpointing:
+                    checkpoint = deepspeed.checkpointing.checkpoint
+                else:
+                    checkpoint = torch.utils.checkpoint.checkpoint
+
+                layer_outputs = checkpoint(
                     create_custom_forward(layer_module),
                     hidden_states,
                     attention_mask,
@@ -734,9 +741,10 @@ class BertPreTrainedModel(PreTrainedModel):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
 
-    def _set_gradient_checkpointing(self, module, value=False):
+    def _set_gradient_checkpointing(self, module, gradient_checkpointing=False, deepspeed_checkpointing=False):
         if isinstance(module, BertEncoder):
-            module.gradient_checkpointing = value
+            module.gradient_checkpointing = gradient_checkpointing
+            module.deepspeed_checkpointing = deepspeed_checkpointing
 
 
 @dataclass
