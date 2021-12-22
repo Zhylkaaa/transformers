@@ -20,10 +20,10 @@ from typing import Any, Callable, Dict, List, NewType, Optional, Tuple, Union
 from ..file_utils import PaddingStrategy
 from ..models.bert import BertTokenizer, BertTokenizerFast
 from ..tokenization_utils_base import BatchEncoding, PreTrainedTokenizerBase
-from ..models.roberta import RobertaTokenizer, RobertaTokenizerFast
-from ..models.xlm_roberta import XLMRobertaTokenizer, XLMRobertaTokenizerFast
-from ..models.xlm import XLMTokenizer
-from ..models.herbert import HerbertTokenizer, HerbertTokenizerFast
+from transformers.models.roberta import RobertaTokenizer, RobertaTokenizerFast
+from transformers.models.xlm_roberta import XLMRobertaTokenizer, XLMRobertaTokenizerFast
+from transformers.models.xlm import XLMTokenizer
+from transformers.models.herbert import HerbertTokenizer, HerbertTokenizerFast
 
 
 InputDataClass = NewType("InputDataClass", Any)
